@@ -1,0 +1,22 @@
+name: Astanix-ESP
+version: '${project.version}'
+main: dev.astanix.esp.AstanixESPPlugin
+api-version: '1.21'
+author: Astanix Development
+description: High-Performance Anti-Storage ESP Protection Plugin for Paper 1.21.x
+website: https://github.com/NeetzRoute
+
+commands:
+  astanixesp:
+    description: Main administrative Astanix ESP command
+    aliases: [esp, antiesp, aesp]
+    permission: astanix.esp.admin
+    usage: /<command> [reload|status|bypass|debug]
+
+permissions:
+  astanix.esp.admin:
+    description: Allows managing Astanix ESP plugin and viewing status
+    default: op
+  astanix.esp.bypass:
+    description: Allows bypassing storage masking
+    default: op
