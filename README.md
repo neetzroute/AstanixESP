@@ -1,61 +1,35 @@
-# 📦 Astanix-ESP (Anti-Storage ESP Protection)
+# 🛡️ AstanixESP (Anti-Storage ESP & Silent Wall-Occlusion Suite)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Minecraft-1.21.x-brightgreen.svg?style=for-the-badge&logo=minecraft" alt="Minecraft Version" />
   <img src="https://img.shields.io/badge/Java-21-orange.svg?style=for-the-badge&logo=openjdk" alt="Java Version" />
   <img src="https://img.shields.io/badge/Platform-Paper%20%2F%20Purpur-blue.svg?style=for-the-badge" alt="Platform" />
-  <img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge" alt="License" />
+  <img src="https://img.shields.io/badge/Mode-Silent%20%26%20Zero--Spam-success.svg?style=for-the-badge" alt="Mode" />
 </p>
 
-**Astanix-ESP** — это высокопроизводительный серверный Paper-плагин нового поколения для полной защиты сервера от любых видов читов категории **Storage ESP / Chest ESP / Container ESP / FreeCam** (Meteor, LiquidBounce, Aristois, Wurst, Baritone и др.).
+**AstanixESP** — это объединённый высокопроизводительный Paper-плагин для комплексной бесшумной защиты сервера от **Storage ESP, Chest ESP, Container ESP и FreeCam** (Meteor, LiquidBounce, Aristois, Wurst, Baritone и др.).
 
-Плагин перехватывает отображение контейнеров на сетевом уровне протокола Paper. Если игрок находится на расстоянии более **25 блоков** (дистанция настраивается), контейнер для его клиента **физически подменяется на естественный блок окружения** (землю, камень, доски, снег), а сущности-хранилища скрываются. Чит-клиенты удаляют TileEntity из памяти и не могут подсветить сундуки сквозь стены.
-
----
-
-## ✨ Ключевые возможности
-
-* 📦 **Полный охват всех типов хранилищ:**
-  * **Сундуки:** Обычные (`CHEST`), сундуки-ловушки (`TRAPPED_CHEST`), эндер-сундуки (`ENDER_CHEST`), бочки (`BARREL`).
-  * **Печи:** Обычные (`FURNACE`), плавильни (`BLAST_FURNACE`), коптильни (`SMOKER`).
-  * **Магия и варка:** Зельеварочные стойки (`BREWING_STAND`), столы зачарования (`ENCHANTING_TABLE`).
-  * **Шалкеровые ящики:** Все 16 цветов + неокрашенный (`SHULKER_BOX`).
-  * **Редстоун-хранилища:** Воронки (`HOPPER`), выбрасыватели (`DROPPER`), раздатчики (`DISPENSER`), авто-верстаки (`CRAFTER`), резные книжные полки (`CHISELED_BOOKSHELF`).
-  * **Сущности-хранилища:** Вагонетки с сундуком/воронкой (`CHEST_MINECART`, `HOPPER_MINECART`), лодки с сундуком (`CHEST_BOAT`).
-
-* 🎨 **Интеллектуальная контекстная маскировка (Contextual Disguise):**
-  * Блок заменяется на блок **поверхности или опоры, на которой он стоит**.
-  * Сундук на траве/тропинке (`GRASS_BLOCK`, `DIRT_PATH`, `PODZOL`) подменяется на **землю (`DIRT`)**.
-  * Сундук на снегу или снежном блоке (`SNOW`, `SNOW_BLOCK`) подменяется на **`SNOW_BLOCK`**.
-  * Сундук на досках, камне, булыжнике или глубоком сланце заменяется на соответствующий тип блока.
-  * Парящие или подвешенные контейнеры: плагин трассирует вертикаль вниз до первого твёрдого блока поверхности.
-  * Контейнеры над пустотой: берутся соседние стены, потолок или контекстный fallback (`STONE` / `DEEPSLATE` на `Y < 0` / `NETHERRACK` / `END_STONE`).
-
-* ⚡ **Нулевая нагрузка на TPS (Zero TPS Loss):**
-  * **Кэширование при загрузке чанка:** Используется сверхбыстрый вызов Paper API `chunk.getTileEntities(false)`, который не создаёт тяжёлых копий NBT инвентарей. Сервер не сканирует мир в тиках.
-  * **Spatial Bounding Window (5x5 чанков):** Проверка дистанции 25 блоков ограничена радиусом всего в 2 чанка вокруг игрока. Блоки за пределами этого радиуса гарантированно скрыты без проверок.
-  * **Tick Spreading:** Игроки равномерно распределяются по тикам через `(player.getEntityId() + tick) % interval`, исключая одновременную нагрузку на процессор.
-  * **Movement Threshold:** Если игрок сместился менее чем на 0.5 блока (стоит на месте, сортирует вещи, копает), расчёт дистанции мгновенно пропускается.
-  * **State Transition Only:** Пакеты отправляются **только** в момент пересечения радиуса 25 блоков (скрытие ⇄ открытие). Никакого спама пакетами.
-
-* 🌐 **Мгновенный перехват чанков (`PlayerChunkLoadEvent`):**
-  * В момент отправки чанка игроку контейнеры дальше 25 блоков маскируются немедленно. Чит не успевает отобразить даже один кадр подсветки.
-
-* 🛠️ **Административный Bypass:**
-  * Администраторы с правом `astanix.esp.bypass` могут командой `/esp bypass` мгновенно отключить маскировку для себя при проведении проверок.
+Плагин работает в **полностью бесшумном режиме**: никаких алертов в чат, никаких звуковых сигналов или спама в консоль. Он просто и надежно **прячет сундуки** от читеров и блокирует любые нелегитимные взаимодействия!
 
 ---
 
-## 📂 Структура пакетов (`dev.astanix.esp`)
+## 🎯 Принцип работы: «Просто прячем сундуки»
 
-- `command` — обработчик административных команд `/esp` (`/astanixesp`) и автодополнение аргументов.
-- `config` — загрузка и валидация настроек из `config.yml`.
-- `disguise` — интеллектуальный движок `DisguiseResolver` для контекстного подбора маскировочных блоков.
-- `listener` — высокопроизводительные слушатели чанков, блоков, сущностей и перемещения игроков.
-- `manager` — пространственный кэш `StorageManager`, индексирующий чанки по `World` и `ChunkPos`.
-- `model` — легковесные структуры данных: `BlockPos`, `ChunkPos`, `StorageBlock`, `StorageChunk`, `PlayerState`.
-- `tracker` — сервис `PlayerTrackerService` для управления дистанцией, батчингом пакетов и тик-спредингом.
-- `util` — форматирование компонентов Kyori Adventure MiniMessage (`TextUtil`).
+1. **Дистанционная маскировка (Anti-Storage ESP, от 25 блоков):**
+   * Все целевые контейнеры (сундуки, бочки, шалкеры, печи и т.д.) за пределами дистанции видимости подменяются сетевыми пакетами Paper на **блок, на котором они стоят**.
+   * Сундук на дёрне (`GRASS_BLOCK`) подменяется на `GRASS_BLOCK`.
+   * Сундук на снегу подменяется на `SNOW_BLOCK`.
+   * Сундук на досках, камне или сланце — на соответствующий материал поверхности.
+   * Двойные сундуки синхронизированы атомарно: обе половины открываются и закрываются одновременно в одном пакете, текстуры не ломаются.
+
+2. **Скрытие контейнеров за стенами (Wall Occlusion, вблизи игрока):**
+   * Даже если читер подлетает на расстояние 5–15 блоков через **FreeCam**, контейнеры, скрытые за глухими стенами, перекрытиями и полом, **визуально подменяются на окружающую породу/пол** (`STONE`, `DEEPSLATE`, `PLANKS` и т.д.).
+   * Летающая камера FreeCam видит только сплошной массив стен и пола — тайные комнаты, базы и сундуки обнаружить невозможно!
+   * Как только игрок легитимно входит в дверной проём или получает прямую линию взгляда (Line of Sight), сундуки мгновенно отображаются в своём исходном виде.
+
+3. **Бесшумная блокировка взаимодействия сквозь стены (Silent Denial):**
+   * Попытки открыть контейнер через стену, нажать рычаг, кликнуть по сундуку или сломать блок без прямой видимости **молча отменяются** на уровне событий ядра.
+   * Чат администраторов остаётся чистым, сервер не нагружается вычислениями ложных алертов.
 
 ---
 
@@ -63,12 +37,12 @@
 
 | Команда | Алиасы | Описание | Право доступа |
 |---|---|---|---|
-| `/esp status` | `/esp info` | Статистика кэша: отслеживаемые чанки, блоки, сущности, память | `astanix.esp.admin` |
-| `/esp reload` | — | Перезагрузить конфигурацию и переиндексировать чанки | `astanix.esp.admin` |
-| `/esp bypass` | — | Включить/выключить режим обхода маскировки (видеть все блоки) | `astanix.esp.bypass` |
-| `/esp debug` | — | Переключить режим отладочного логирования в консоли | `astanix.esp.admin` |
-
-> По умолчанию право `astanix.esp.admin` выдано операторам сервера (`OP`).
+| `/esp status` | `/esp info` | Статистика кэша: отслеживаемые чанки, блоки, сущности | `astanix.esp.admin` |
+| `/esp reload` | — | Перезагрузить конфигурацию `config.yml` | `astanix.esp.admin` |
+| `/esp bypass` | — | Переключить режим обхода маскировки (видеть все контейнеры) | `astanix.esp.bypass` |
+| `/afc info [игрок]` | `/freecam info` | Статус проверок и количество скрытых за стенами контейнеров | `astanix.freecam.admin` |
+| `/afc bypass` | — | Переключить персональный обход проверок видимости | `astanix.freecam.bypass` |
+| `/afc reload` | — | Перезагрузить конфигурацию плагина | `astanix.freecam.admin` |
 
 ---
 
@@ -91,7 +65,7 @@ fallback-disguise:
   nether: "NETHERRACK"
   the-end: "END_STONE"
 
-# Список типов блоков, подлежащих маскировке (Material)
+# Список целевых контейнеров для маскировки
 target-blocks:
   - "CHEST"
   - "TRAPPED_CHEST"
@@ -102,6 +76,11 @@ target-blocks:
   - "SMOKER"
   - "BREWING_STAND"
   - "ENCHANTING_TABLE"
+  - "DISPENSER"
+  - "DROPPER"
+  - "HOPPER"
+  - "CRAFTER"
+  - "CHISELED_BOOKSHELF"
   - "SHULKER_BOX"
   - "WHITE_SHULKER_BOX"
   - "ORANGE_SHULKER_BOX"
@@ -119,41 +98,37 @@ target-blocks:
   - "GREEN_SHULKER_BOX"
   - "RED_SHULKER_BOX"
   - "BLACK_SHULKER_BOX"
-  - "HOPPER"
-  - "DISPENSER"
-  - "DROPPER"
-  - "CRAFTER"
-  - "CHISELED_BOOKSHELF"
 
-# Список сущностей-хранилищ, скрываемых на дистанции
 target-entities:
   - "CHEST_MINECART"
   - "HOPPER_MINECART"
   - "CHEST_BOAT"
 
-debug: false
+# Настройки защиты от FreeCam и скрытия за стенами
+freecam:
+  reach:
+    enabled: true
+    survival-max: 4.8
+    creative-max: 5.5
+  raytrace:
+    enabled: true
+    check-blocks: true
+    check-entities: true
+    check-breaking: true
+    check-air-clicks: true
+    check-inventory-open: true
+    multi-ray-samples: 5
+  occlusion:
+    enabled: true
+    radius: 18.0
 ```
 
 ---
 
-## 🔨 Сборка проекта
+## 🔨 Сборка
 
-### Сборка через Maven:
 ```bash
 mvn clean package -DskipTests
 ```
-Готовый jar-файл появится в `target/astanix-esp-1.0.0.jar`.
-
-### Сборка через Gradle:
-```bash
-gradle shadowJar
-```
-Готовый jar-файл появится в `build/libs/astanix-esp-1.0.0.jar`.
-
----
-
-## 🚀 Установка на сервер
-1. Скомпилируйте плагин или скачайте готовый jar-файл из вкладки **Releases**.
-2. Поместите `astanix-esp-1.0.0.jar` в папку `plugins/` вашего Paper/Purpur 1.21.x сервера.
-3. Перезапустите сервер или загрузите плагин.
-4. Настройте `plugins/Astanix-ESP/config.yml` при необходимости.
+Готовый артефакт:
+`target/astanix-esp-1.0.0.jar`

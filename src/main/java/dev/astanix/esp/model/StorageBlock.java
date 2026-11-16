@@ -7,12 +7,14 @@ import java.util.Objects;
 
 /**
  * Represents a cached storage block with its real state and disguised state.
+ * Supports atomic pairing for double chests to eliminate texture desyncs.
  */
 public class StorageBlock {
     private final BlockPos pos;
     private final Material originalMaterial;
     private final BlockData originalBlockData;
     private volatile BlockData disguiseBlockData;
+    private StorageBlock pairedBlock;
 
     public StorageBlock(BlockPos pos, Material originalMaterial, BlockData originalBlockData, BlockData disguiseBlockData) {
         this.pos = Objects.requireNonNull(pos, "pos cannot be null");
@@ -41,6 +43,18 @@ public class StorageBlock {
         this.disguiseBlockData = Objects.requireNonNull(disguiseBlockData, "disguiseBlockData cannot be null");
     }
 
+    public boolean isDoubleChest() {
+        return pairedBlock != null;
+    }
+
+    public StorageBlock getPairedBlock() {
+        return pairedBlock;
+    }
+
+    public void setPairedBlock(StorageBlock pairedBlock) {
+        this.pairedBlock = pairedBlock;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -60,6 +74,7 @@ public class StorageBlock {
                 "pos=" + pos +
                 ", original=" + originalMaterial +
                 ", disguise=" + disguiseBlockData.getMaterial() +
+                ", isDoubleChest=" + isDoubleChest() +
                 '}';
     }
 }

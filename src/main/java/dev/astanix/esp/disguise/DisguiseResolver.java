@@ -27,12 +27,14 @@ public class DisguiseResolver {
      *
      * Rules:
      * 1. Inspect downwards up to configured max depth for the supporting surface.
-     * 2. If resting on GRASS_BLOCK/PATH/PODZOL -> replaces with DIRT.
-     * 3. If resting on SNOW/SNOW_BLOCK/POWDER_SNOW -> replaces with SNOW_BLOCK.
-     * 4. If resting on any solid opaque block (STONE, PLANKS, BRICKS, etc.) -> replaces with that block type.
-     * 5. If suspended/floating in air -> continues downward scan until reaching solid ground.
-     * 6. If no ground below (e.g. hung over void) -> checks horizontal wall neighbors and ceiling.
-     * 7. Fallback to dimension-appropriate solid material (STONE/DEEPSLATE/NETHERRACK/END_STONE).
+     * 2. If resting on GRASS_BLOCK -> replaces with GRASS_BLOCK (seamless natural grass terrain).
+     * 3. If resting on DIRT_PATH -> replaces with DIRT_PATH.
+     * 4. If resting on DIRT -> replaces with DIRT.
+     * 5. If resting on SNOW/SNOW_BLOCK -> replaces with SNOW_BLOCK.
+     * 6. If resting on any solid opaque block (STONE, PLANKS, BRICKS, etc.) -> replaces with that block type.
+     * 7. If suspended/floating in air -> continues downward scan until reaching solid ground.
+     * 8. If no ground below (e.g. hung over void) -> checks horizontal wall neighbors and ceiling.
+     * 9. Fallback to dimension-appropriate solid material (STONE/DEEPSLATE/NETHERRACK/END_STONE).
      */
     public BlockData resolveDisguise(World world, int x, int y, int z) {
         int minY = world.getMinHeight();
@@ -82,10 +84,21 @@ public class DisguiseResolver {
      * Maps supporting material to natural disguise block data.
      */
     private BlockData mapToDisguiseBlockData(Material mat, BlockData actualData) {
-        // Grass / dirt paths -> Dirt (matches natural terrain under solid blocks)
-        if (mat == Material.GRASS_BLOCK || mat == Material.DIRT_PATH ||
-                mat == Material.MYCELIUM || mat == Material.PODZOL || mat == Material.FARMLAND) {
-            return Material.DIRT.createBlockData();
+        // Natural terrain blocks: mask as the EXACT supporting block
+        if (mat == Material.GRASS_BLOCK) {
+            return Material.GRASS_BLOCK.createBlockData();
+        }
+        if (mat == Material.DIRT_PATH) {
+            return Material.DIRT_PATH.createBlockData();
+        }
+        if (mat == Material.PODZOL) {
+            return Material.PODZOL.createBlockData();
+        }
+        if (mat == Material.MYCELIUM) {
+            return Material.MYCELIUM.createBlockData();
+        }
+        if (mat == Material.DIRT || mat == Material.COARSE_DIRT || mat == Material.ROOTED_DIRT) {
+            return mat.createBlockData();
         }
 
         // Snow variations -> Snow Block
@@ -93,7 +106,7 @@ public class DisguiseResolver {
             return Material.SNOW_BLOCK.createBlockData();
         }
 
-        // If it's a solid, full block (planks, stone, cobblestone, etc.)
+        // If it's a solid, full block (planks, stone, cobblestone, deepslate, bricks, sand, etc.)
         if (mat.isBlock() && mat.isSolid()) {
             try {
                 return mat.createBlockData();

@@ -3,7 +3,7 @@ version: '${project.version}'
 main: dev.astanix.esp.AstanixESPPlugin
 api-version: '1.21'
 author: Astanix Development
-description: High-Performance Anti-Storage ESP Protection Plugin for Paper 1.21.x
+description: Unified Anti-Storage ESP & Anti-FreeCam Protection Plugin for Paper 1.21.x (Silent Mode)
 website: https://github.com/NeetzRoute
 
 commands:
@@ -12,6 +12,11 @@ commands:
     aliases: [esp, antiesp, aesp]
     permission: astanix.esp.admin
     usage: /<command> [reload|status|bypass|debug]
+  afc:
+    description: Main administrative Astanix FreeCam command
+    aliases: [astanixfc, freecam]
+    permission: astanix.freecam.admin
+    usage: /<command> [reload|info|bypass]
 
 permissions:
   astanix.esp.admin:
@@ -19,4 +24,10 @@ permissions:
     default: op
   astanix.esp.bypass:
     description: Allows bypassing storage masking
+    default: false
+  astanix.freecam.admin:
+    description: Allows administrative management of Astanix FreeCam (/afc reload, info, bypass)
     default: op
+  astanix.freecam.bypass:
+    description: Allows bypassing Anti-FreeCam raytrace and reach validations
+    default: false

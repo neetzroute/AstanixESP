@@ -24,6 +24,7 @@ import java.util.logging.Logger;
 /**
  * High-performance tracker service responsible for distance calculation,
  * tick-distributed player checking, and batch packet dispatching.
+ * Treats double chests as atomic pairs to eliminate client-side texture corruption.
  */
 public class PlayerTrackerService {
     private final AstanixESPPlugin plugin;
@@ -45,7 +46,6 @@ public class PlayerTrackerService {
 
     public void start() {
         stop();
-        // Run tick task at interval 1 tick, but spread players evenly across checkIntervalTicks
         this.tickerTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 1L);
     }
 
@@ -61,7 +61,7 @@ public class PlayerTrackerService {
         long interval = config.getCheckIntervalTicks();
 
         for (Player player : Bukkit.getOnlinePlayers()) {
-            // Tick spreading: evenly distribute players across ticks
+            // Tick spreading
             if ((Math.abs(player.getEntityId()) + tickIndex) % interval != 0) {
                 continue;
             }
@@ -113,6 +113,8 @@ public class PlayerTrackerService {
         List<Entity> toHideEntities = new ArrayList<>();
         List<Entity> toShowEntities = new ArrayList<>();
 
+        Set<BlockPos> processedChestsThisPass = new HashSet<>();
+
         // 1. Scan chunks within the spatial bounding window
         for (int cx = pChunkX - chunkRadius; cx <= pChunkX + chunkRadius; cx++) {
             for (int cz = pChunkZ - chunkRadius; cz <= pChunkZ + chunkRadius; cz++) {
@@ -124,17 +126,48 @@ public class PlayerTrackerService {
                 // Check blocks
                 for (StorageBlock block : storageChunk.getBlocks()) {
                     BlockPos bPos = block.getPos();
-                    double distSq = bPos.distanceSquared(px, py, pz);
+                    if (processedChestsThisPass.contains(bPos)) continue;
 
-                    if (distSq <= hideDistSq) {
-                        // In proximity -> Reveal real block
-                        if (state.markBlockRevealed(bPos)) {
-                            toReveal.put(bPos.toPaperPosition(), block.getOriginalBlockData());
+                    double distSq;
+                    StorageBlock paired = block.getPairedBlock();
+
+                    if (paired != null) {
+                        // Double Chest: Evaluate atomic minimum distance
+                        processedChestsThisPass.add(bPos);
+                        processedChestsThisPass.add(paired.getPos());
+
+                        double distA = bPos.distanceSquared(px, py, pz);
+                        double distB = paired.getPos().distanceSquared(px, py, pz);
+                        distSq = Math.min(distA, distB);
+
+                        if (distSq <= hideDistSq) {
+                            // Proximity -> reveal BOTH halves atomically
+                            if (state.markBlockRevealed(bPos)) {
+                                toReveal.put(bPos.toPaperPosition(), block.getOriginalBlockData());
+                            }
+                            if (state.markBlockRevealed(paired.getPos())) {
+                                toReveal.put(paired.getPos().toPaperPosition(), paired.getOriginalBlockData());
+                            }
+                        } else {
+                            // Distant -> disguise BOTH halves atomically
+                            if (state.markBlockHidden(bPos)) {
+                                toDisguise.put(bPos.toPaperPosition(), block.getDisguiseBlockData());
+                            }
+                            if (state.markBlockHidden(paired.getPos())) {
+                                toDisguise.put(paired.getPos().toPaperPosition(), paired.getDisguiseBlockData());
+                            }
                         }
                     } else {
-                        // Distant -> Disguise block
-                        if (state.markBlockHidden(bPos)) {
-                            toDisguise.put(bPos.toPaperPosition(), block.getDisguiseBlockData());
+                        // Single Block
+                        distSq = bPos.distanceSquared(px, py, pz);
+                        if (distSq <= hideDistSq) {
+                            if (state.markBlockRevealed(bPos)) {
+                                toReveal.put(bPos.toPaperPosition(), block.getOriginalBlockData());
+                            }
+                        } else {
+                            if (state.markBlockHidden(bPos)) {
+                                toDisguise.put(bPos.toPaperPosition(), block.getDisguiseBlockData());
+                            }
                         }
                     }
                 }
@@ -158,16 +191,26 @@ public class PlayerTrackerService {
             }
         }
 
-        // 2. Validate previously revealed blocks that may now be outside range or in different chunks
+        // 2. Validate previously revealed blocks that may now be outside range
         Iterator<BlockPos> blockIt = state.getRevealedBlocks().iterator();
         while (blockIt.hasNext()) {
             BlockPos bPos = blockIt.next();
+            StorageBlock sb = storageManager.getStorageBlock(world, bPos);
             double distSq = bPos.distanceSquared(px, py, pz);
-            if (distSq > hideDistSq) {
+
+            if (sb != null && sb.isDoubleChest()) {
+                StorageBlock paired = sb.getPairedBlock();
+                double distPaired = paired.getPos().distanceSquared(px, py, pz);
+                if (Math.min(distSq, distPaired) > hideDistSq) {
+                    blockIt.remove();
+                    state.markBlockHidden(paired.getPos());
+                    toDisguise.put(bPos.toPaperPosition(), sb.getDisguiseBlockData());
+                    toDisguise.put(paired.getPos().toPaperPosition(), paired.getDisguiseBlockData());
+                }
+            } else if (distSq > hideDistSq) {
                 blockIt.remove();
-                StorageChunk sc = storageManager.getStorageChunk(world, bPos.getChunkX(), bPos.getChunkZ());
-                BlockData disguise = (sc != null && sc.getBlock(bPos) != null)
-                        ? sc.getBlock(bPos).getDisguiseBlockData()
+                BlockData disguise = (sb != null)
+                        ? sb.getDisguiseBlockData()
                         : plugin.getDisguiseResolver().getFallbackBlockData(world, bPos.y());
                 toDisguise.put(bPos.toPaperPosition(), disguise);
             }
@@ -206,9 +249,9 @@ public class PlayerTrackerService {
 
     /**
      * Handled immediately when Paper dispatches a chunk to a player.
-     * Prevents Storage ESP outline flicker before ticker runs.
+     * Disguises distant blocks atomically.
      */
-    public void onPlayerChunkLoad(Player player, org.bukkit.Chunk chunk) {
+    public void onPlayerChunkLoad(Player player, Chunk chunk) {
         StorageChunk sc = storageManager.getStorageChunk(chunk);
         if (sc == null || sc.isEmpty()) return;
 
@@ -227,7 +270,16 @@ public class PlayerTrackerService {
 
         for (StorageBlock block : sc.getBlocks()) {
             BlockPos bPos = block.getPos();
-            double dSq = bPos.distanceSquared(px, py, pz);
+            double dSq;
+
+            if (block.isDoubleChest()) {
+                double distA = bPos.distanceSquared(px, py, pz);
+                double distB = block.getPairedBlock().getPos().distanceSquared(px, py, pz);
+                dSq = Math.min(distA, distB);
+            } else {
+                dSq = bPos.distanceSquared(px, py, pz);
+            }
+
             if (dSq > hideDistSq) {
                 chunkDisguises.put(bPos.toPaperPosition(), block.getDisguiseBlockData());
                 state.markBlockHidden(bPos);
@@ -265,14 +317,27 @@ public class PlayerTrackerService {
             PlayerState state = getPlayerState(player);
             if (state.isBypass() && player.hasPermission("astanix.esp.bypass")) continue;
 
-            double dSq = pos.distanceSquared(player.getLocation().getX(),
-                    player.getLocation().getY(), player.getLocation().getZ());
+            double px = player.getLocation().getX();
+            double py = player.getLocation().getY();
+            double pz = player.getLocation().getZ();
+
+            double dSq = block.isDoubleChest()
+                    ? Math.min(pos.distanceSquared(px, py, pz), block.getPairedBlock().getPos().distanceSquared(px, py, pz))
+                    : pos.distanceSquared(px, py, pz);
 
             if (dSq > hideDistSq) {
                 state.markBlockHidden(pos);
                 player.sendBlockChange(pos.toLocation(world), block.getDisguiseBlockData());
+                if (block.isDoubleChest()) {
+                    state.markBlockHidden(block.getPairedBlock().getPos());
+                    player.sendBlockChange(block.getPairedBlock().getPos().toLocation(world),
+                            block.getPairedBlock().getDisguiseBlockData());
+                }
             } else {
                 state.markBlockRevealed(pos);
+                if (block.isDoubleChest()) {
+                    state.markBlockRevealed(block.getPairedBlock().getPos());
+                }
             }
         }
     }
@@ -317,12 +382,9 @@ public class PlayerTrackerService {
 
         // Restore real block appearances
         for (BlockPos pos : state.getRevealedBlocks()) {
-            StorageChunk sc = storageManager.getStorageChunk(world, pos.getChunkX(), pos.getChunkZ());
-            if (sc != null) {
-                StorageBlock block = sc.getBlock(pos);
-                if (block != null) {
-                    player.sendBlockChange(pos.toLocation(world), block.getOriginalBlockData());
-                }
+            StorageBlock block = storageManager.getStorageBlock(world, pos);
+            if (block != null) {
+                player.sendBlockChange(pos.toLocation(world), block.getOriginalBlockData());
             }
         }
 
